@@ -6,3 +6,20 @@
 [![codecov](https://codecov.io/gh/vitkl/scHierarchy/branch/main/graph/badge.svg?token=BGI9Z8R11R)](https://codecov.io/gh/vitkl/scHierarchy)
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 
+## Installation
+
+```bash
+git clone git@github.com:vitkl/scHierarchy.git
+cd scHierarchy
+```
+
+```bash
+export PYTHONNOUSERSITE="aaaaa"
+conda create -y -n test_schierarchy python=3.9
+conda activate test_schierarchy
+pip install git+https://github.com/BayraktarLab/cell2location.git#egg=cell2location[tutorials]
+pip install git+https://github.com/pyro-ppl/pyro.git
+pip install .[dev, docs, tutorials]
+conda activate test_schierarchy
+python -m ipykernel install --user --name=test_schierarchy --display-name='Environment (test_schierarchy)'
+```
