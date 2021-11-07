@@ -1,3 +1,5 @@
+from typing import Optional
+
 from cell2location.models.base._pyro_mixin import AutoGuideMixinModule, init_to_value
 from scvi._compat import Literal
 from scvi.module.base import PyroBaseModuleClass
@@ -11,6 +13,7 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
         encoder_mode: Literal["single", "multiple", "single-multiple"] = "single",
         encoder_kwargs=None,
         data_transform="log1p",
+        create_autoguide_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -42,6 +45,7 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
             encoder_mode=encoder_mode,
             init_loc_fn=self.init_to_value,
             n_cat_list=[kwargs["n_batch"]],
+            **create_autoguide_kwargs,
         )
 
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
