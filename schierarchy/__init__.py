@@ -6,8 +6,8 @@ from rich.console import Console
 from rich.logging import RichHandler
 from scvi.data import setup_anndata
 
-from ._mymodel import MyModel, MyModule
-from ._mypyromodel import MyPyroModel, MyPyroModule
+from .regression._reference_model import RegressionModel
+from .regression._reference_module import RegressionBackgroundDetectionTechPyroModel
 
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
@@ -16,7 +16,7 @@ try:
 except ModuleNotFoundError:
     import importlib_metadata
 
-package_name = "scvi-tools-skeleton"
+package_name = "schierarchy"
 __version__ = importlib_metadata.version(package_name)
 
 logger = logging.getLogger(__name__)
@@ -35,4 +35,8 @@ logger.addHandler(ch)
 # this prevents double outputs
 logger.propagate = False
 
-__all__ = ["setup_anndata", "MyModel", "MyModule", "MyPyroModel", "MyPyroModule"]
+__all__ = [
+    "setup_anndata",
+    "RegressionModel",
+    "RegressionBackgroundDetectionTechPyroModel",
+]

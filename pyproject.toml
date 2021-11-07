@@ -2,10 +2,10 @@
 include_trailing_comma = true
 multi_line_output = 3
 profile = "black"
-skip_glob = ["docs/*", "mypackage/__init__.py"]
+skip_glob = ["docs/*", "schierarchy/__init__.py"]
 
 [tool.poetry]
-authors = ["Adam Gayoso <adamgayoso@berkeley.edu>", "Galen Xing <gx2113@columbia.edu>", "Romain Lopez <romain_lopez@gmail.com>"]
+authors = ["Artem Lomakin <alomakin@ebi.ac.uk>", "Vitalii Kleshchevnikov <vitalii.kleshchevnikov@sanger.ac.uk>"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
@@ -18,15 +18,15 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 description = "Skeleton respository for generating novel scvi-tools models."
-documentation = "https://scvi-tools.org"
-homepage = "https://github.com/YosefLab/scvi-tools-skeleton"
-license = "BSD-3-Clause"
-name = "scvi-tools-skeleton"
+documentation = "https://github.com/vitkl/schierarchy"
+homepage = "https://github.com/vitkl/schierarchy"
+license = "Apache License, Version 2.0"
+name = "schierarchy"
 packages = [
-  {include = "mypackage"},
+  {include = "schierarchy"},
 ]
 readme = "README.md"
-version = "0.4.0"
+version = "0.0.1"
 
 [tool.poetry.dependencies]
 anndata = ">=0.7.5"
@@ -51,7 +51,8 @@ python-igraph = {version = "*", optional = true}
 scanpy = {version = ">=1.6", optional = true}
 scanpydoc = {version = ">=0.5", optional = true}
 scikit-misc = {version = ">=0.1.3", optional = true}
-scvi-tools = ">=0.12.1"
+scvi-tools = ">=0.14.3"
+cell2location = {git = "https://github.com/BayraktarLab/cell2location.git"}
 sphinx = {version = "^3.0", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
 sphinx-rtd-theme = {version = "*", optional = true}
