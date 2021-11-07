@@ -36,6 +36,8 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
 
         self._model = model(**kwargs)
         self._amortised = amortised
+        if create_autoguide_kwargs is None:
+            create_autoguide_kwargs = dict()
 
         self._guide = self._create_autoguide(
             model=self.model,
