@@ -14,7 +14,7 @@ from scvi.utils import setup_anndata_dsp
 
 from schierarchy.base._pyro_base_regression_module import RegressionBaseModule
 
-from ._module import RegressionBackgroundDetectionTechPyroModel
+from ._reference_module import RegressionBackgroundDetectionTechPyroModel
 
 
 class RegressionModel(
