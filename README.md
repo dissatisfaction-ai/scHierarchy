@@ -18,7 +18,7 @@ export PYTHONNOUSERSITE="aaaaa"
 conda create -y -n test_schierarchy python=3.9
 conda activate test_schierarchy
 pip install git+https://github.com/pyro-ppl/pyro.git@dev
-conda install -y -c anaconda hdf5
+conda install -y -c anaconda hdf5 pytables
 pip install git+https://github.com/BayraktarLab/cell2location.git#egg=cell2location[tutorials]
 pip install git+https://github.com/BayraktarLab/cell2location.git@hierarchical_AutoGuideMessenger
 pip install .[dev, docs, tutorials]
