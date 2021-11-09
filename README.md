@@ -20,6 +20,7 @@ conda activate test_schierarchy
 pip install git+https://github.com/pyro-ppl/pyro.git@dev
 conda install -y -c anaconda hdf5 pytables
 pip install git+https://github.com/BayraktarLab/cell2location.git#egg=cell2location[tutorials]
+pip uninstall -y cell2location
 pip install git+https://github.com/BayraktarLab/cell2location.git@hierarchical_AutoGuideMessenger
 pip install .[dev, docs, tutorials]
 conda activate test_schierarchy
