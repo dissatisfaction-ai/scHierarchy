@@ -22,7 +22,7 @@ conda install -y -c anaconda hdf5 pytables
 pip install git+https://github.com/BayraktarLab/cell2location.git#egg=cell2location[tutorials]
 pip uninstall -y cell2location
 pip install git+https://github.com/BayraktarLab/cell2location.git@hierarchical_AutoGuideMessenger
-pip install .[dev, docs, tutorials]
+pip install .[dev,docs,tutorials]
 conda activate test_schierarchy
 python -m ipykernel install --user --name=test_schierarchy --display-name='Environment (test_schierarchy)'
 ```
