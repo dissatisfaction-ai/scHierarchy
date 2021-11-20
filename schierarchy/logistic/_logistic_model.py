@@ -35,7 +35,7 @@ def _setup_summary_stats(adata, level_keys):
     n_cells = adata.shape[0]
     n_vars = adata.shape[1]
     n_cells_per_label_per_level = [
-        adata.obs.groupby(group).size().values for group in level_keys
+        adata.obs.groupby(group).size().values.astype(int) for group in level_keys
     ]
 
     # TODO consider calculating class_size here
@@ -168,7 +168,7 @@ class LogisticModel(
             tree=tree,
             **model_kwargs,
         )
-
+        del self.adata.uns["_scvi"]["summary_stats"]["n_cells_per_label_per_level"]
         self.init_params_ = self._get_init_params(locals())
 
     @staticmethod
@@ -239,7 +239,7 @@ class LogisticModel(
             "date": str(date.today()),
             "var_names": self.adata.var_names.tolist(),
             "obs_names": self.adata.obs_names.tolist(),
-            "tree": self.module.model.tree,
+            # "tree": self.module.model.tree,
             "post_sample_means": samples["post_sample_means"],
             "post_sample_stds": samples["post_sample_stds"],
             "post_sample_q05": samples["post_sample_q05"],
