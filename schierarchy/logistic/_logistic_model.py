@@ -31,6 +31,21 @@ from ._logistic_module import HierarchicalLogisticPyroModel
 logger = logging.getLogger(__name__)
 
 
+def infer_tree(labels, level_keys):
+    tree_inferred = [{} for i in range(len(level_keys) - 1)]
+    for i in range(len(level_keys) - 1):
+        layer_p = labels.iloc[:, i]
+        layer_ch = labels.iloc[:, i + 1]
+        for j in range(labels.shape[0]):
+            if layer_p[j] not in tree_inferred[i].keys():
+                tree_inferred[i][layer_p[j]] = [layer_ch[j]]
+            else:
+                if layer_ch[j] not in tree_inferred[i][layer_p[j]]:
+                    tree_inferred[i][layer_p[j]].append(layer_ch[j])
+
+    return tree_inferred
+
+
 def _setup_summary_stats(adata, level_keys):
     n_cells = adata.shape[0]
     n_vars = adata.shape[1]
@@ -38,7 +53,6 @@ def _setup_summary_stats(adata, level_keys):
         adata.obs.groupby(group).size().values.astype(int) for group in level_keys
     ]
 
-    # TODO consider calculating class_size here
     n_levels = len(level_keys)
 
     summary_stats = {
@@ -49,6 +63,8 @@ def _setup_summary_stats(adata, level_keys):
     }
 
     adata.uns["_scvi"]["summary_stats"] = summary_stats
+    adata.uns["tree"] = infer_tree(adata.obsm["_scvi_extra_categoricals"], level_keys)
+
     logger.info(
         "Successfully registered anndata object containing {} cells, {} vars, "
         "{} cell annotation levels.".format(n_cells, n_vars, n_levels)
@@ -146,7 +162,7 @@ class LogisticModel(
     def __init__(
         self,
         adata: AnnData,
-        tree: list,
+        # tree: list,
         model_class=None,
         **model_kwargs,
     ):
@@ -165,7 +181,7 @@ class LogisticModel(
             n_cells_per_label_per_level=self.summary_stats[
                 "n_cells_per_label_per_level"
             ],
-            tree=tree,
+            tree=self.adata.uns["tree"],
             **model_kwargs,
         )
         del self.adata.uns["_scvi"]["summary_stats"]["n_cells_per_label_per_level"]
@@ -207,6 +223,7 @@ class LogisticModel(
             "attr_name": cat_loc,
             "attr_key": cat_key,
         }
+        #####
 
         # add the data_registry to anndata
         _register_anndata(adata, data_registry_dict=data_registry)

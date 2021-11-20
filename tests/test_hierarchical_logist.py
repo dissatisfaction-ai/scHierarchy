@@ -6,11 +6,11 @@ from schierarchy.utils.simulation import hierarchical_iid
 
 
 def test_hierarchical_logist():
-    save_path = "./cell2location_model_test"
+    # save_path = "./cell2location_model_test"
     hlevels = [4, 10, 20]
     dataset = hierarchical_iid(hlevels)
     level_keys = [f"level_{i}" for i in range(len(hlevels))]
-    tree = dataset.uns["tree"]
+    # tree = dataset.uns["tree"]
     del dataset.uns["tree"]
     dataset.layers["cdf"] = np.apply_along_axis(
         data_to_zero_truncated_cdf, 0, dataset.X
@@ -19,7 +19,7 @@ def test_hierarchical_logist():
     LogisticModel.setup_anndata(dataset, layer="cdf", level_keys=level_keys)
 
     # train regression model to get signatures of cell types
-    sc_model = LogisticModel(dataset, tree=tree)
+    sc_model = LogisticModel(dataset)
     # test full data training
     sc_model.train(max_epochs=10, batch_size=None)
     # test minibatch training
@@ -29,5 +29,5 @@ def test_hierarchical_logist():
     # test plot_QC'
     # sc_model.plot_QC()
     # test save/load
-    sc_model.save(save_path, overwrite=True, save_anndata=True)
+    # sc_model.save(save_path, overwrite=True, save_anndata=True)
     # sc_model = LogisticModel.load(save_path)
