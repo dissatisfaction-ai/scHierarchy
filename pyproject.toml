@@ -17,7 +17,7 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-description = "Skeleton respository for generating novel scvi-tools models."
+description = "Hierachical cell identity toolkit."
 documentation = "https://github.com/vitkl/schierarchy"
 homepage = "https://github.com/vitkl/schierarchy"
 license = "Apache License, Version 2.0"
