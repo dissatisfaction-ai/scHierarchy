@@ -15,14 +15,7 @@ from cell2location.models.base._pyro_mixin import (
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormalMessenger, init_to_feasible, init_to_mean
 from scvi import _CONSTANTS
-from scvi.data._anndata import (
-    _register_anndata,
-    _setup_batch,
-    _setup_extra_categorical_covs,
-    _setup_labels,
-    _setup_x,
-    _verify_and_correct_data_format,
-)
+from scvi.data._anndata import _setup_anndata, _setup_extra_categorical_covs
 from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.module.base import PyroBaseModuleClass
 
@@ -32,6 +25,20 @@ logger = logging.getLogger(__name__)
 
 
 def infer_tree(labels, level_keys):
+    """
+
+    Parameters
+    ----------
+    labels
+        DataFrame with annotations
+    level_keys
+        List of column names from top to bottom levels (from less detailed to more detailed)
+
+    Returns
+    -------
+    List of edges between level len(n_levels - 1 )
+
+    """
     tree_inferred = [{} for i in range(len(level_keys) - 1)]
     for i in range(len(level_keys) - 1):
         layer_p = labels.iloc[:, i]
@@ -46,7 +53,7 @@ def infer_tree(labels, level_keys):
     return tree_inferred
 
 
-def _setup_summary_stats(adata, level_keys):
+"""def _setup_summary_stats(adata, level_keys):
     n_cells = adata.shape[0]
     n_vars = adata.shape[1]
     n_cells_per_label_per_level = [
@@ -69,7 +76,7 @@ def _setup_summary_stats(adata, level_keys):
         "Successfully registered anndata object containing {} cells, {} vars, "
         "{} cell annotation levels.".format(n_cells, n_vars, n_levels)
     )
-    return summary_stats
+    return summary_stats"""
 
 
 class LogisticBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
@@ -148,6 +155,8 @@ class LogisticModel(
     ----------
     adata
         single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+    level_keys
+        List of column names from top to bottom levels (from less detailed to more detailed)
     use_gpu
         Use the GPU?
     **model_kwargs
@@ -162,6 +171,7 @@ class LogisticModel(
     def __init__(
         self,
         adata: AnnData,
+        level_keys: Optional[List[str]] = None,
         # tree: list,
         model_class=None,
         **model_kwargs,
@@ -171,27 +181,85 @@ class LogisticModel(
 
         super().__init__(adata)
 
+        # register categorical levels
+        cat_loc, cat_key = _setup_extra_categorical_covs(adata, level_keys)
+        scvi.data.register_tensor_from_anndata(
+            adata,
+            registry_key=_CONSTANTS.CAT_COVS_KEY,
+            adata_attr_name=cat_loc,
+            adata_key_name=cat_key,
+        )
+        # add index for each cell (provided to pyro plate for correct minibatching)
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        # for minibatch learning, selected indices lay in "ind_x"
+        scvi.data.register_tensor_from_anndata(
+            adata,
+            registry_key="ind_x",
+            adata_attr_name="obs",
+            adata_key_name="_indices",
+        )
+
+        self.n_cells_per_label_per_level_ = [
+            self.adata.obs.groupby(group).size().values.astype(int)
+            for group in level_keys
+        ]
+        self.n_levels_ = len(level_keys)
+        self.level_keys_ = level_keys
+        self.tree_ = infer_tree(self.adata.obsm["_scvi_extra_categoricals"], level_keys)
+
         if model_class is None:
             model_class = HierarchicalLogisticPyroModel
         self.module = LogisticBaseModule(
             model=model_class,
             n_obs=self.summary_stats["n_cells"],
             n_vars=self.summary_stats["n_vars"],
-            n_levels=self.summary_stats["n_levels"],
-            n_cells_per_label_per_level=self.summary_stats[
-                "n_cells_per_label_per_level"
-            ],
-            tree=self.adata.uns["tree"],
+            n_levels=self.n_levels_,
+            n_cells_per_label_per_level=self.n_cells_per_label_per_level_,
+            tree=self.tree_,
             **model_kwargs,
         )
-        del self.adata.uns["_scvi"]["summary_stats"]["n_cells_per_label_per_level"]
         self.init_params_ = self._get_init_params(locals())
 
     @staticmethod
     def setup_anndata(
         adata: AnnData,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        level_keys: Optional[List[str]] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_copy)s
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            labels_key=labels_key,
+            layer=layer,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )
+
+    """@staticmethod
+    def setup_anndata_v2(
+        adata: AnnData,
+        # layer: Optional[str] = None,
+        # level_keys: Optional[List[str]] = None,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         copy: bool = False,
@@ -228,25 +296,15 @@ class LogisticModel(
         # add the data_registry to anndata
         _register_anndata(adata, data_registry_dict=data_registry)
 
-        # add index for each cell (provided to pyro plate for correct minibatching)
-        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
-        # for minibatch learning, selected indices lay in "ind_x"
-        scvi.data.register_tensor_from_anndata(
-            adata,
-            registry_key="ind_x",
-            adata_attr_name="obs",
-            adata_key_name="_indices",
-        )
-
         logger.debug("Registered keys:{}".format(list(data_registry.keys())))
-        _setup_summary_stats(adata, level_keys)
+        # _setup_summary_stats(adata, level_keys)
 
         logger.info("Please do not further modify adata until model is trained.")
 
         _verify_and_correct_data_format(adata, data_registry)
 
         if copy:
-            return adata
+            return adata"""
 
     def _export2adata(self, samples):
         # add factor filter and samples of all parameters to unstructured data
@@ -316,7 +374,7 @@ class LogisticModel(
         label_keys = list(
             self.adata.uns["_scvi"]["extra_categoricals"]["mappings"].keys()
         )
-        for i in range(self.summary_stats["n_levels"]):
+        for i in range(self.n_levels_):
             categories = self.adata.uns["_scvi"]["extra_categoricals"]["mappings"][
                 label_keys[i]
             ]
