@@ -11,9 +11,9 @@ def test_regression():
     # train regression model to get signatures of cell types
     sc_model = RegressionModel(dataset)
     # test full data training
-    sc_model.train(max_epochs=1)
+    sc_model.train(max_epochs=10, batch_size=None)
     # test minibatch training
-    sc_model.train(max_epochs=1, batch_size=1000)
+    sc_model.train(max_epochs=10, batch_size=100)
     # export the estimated cell abundance (summary of the posterior distribution)
     dataset = sc_model.export_posterior(dataset, sample_kwargs={"num_samples": 10})
     # test plot_QC'

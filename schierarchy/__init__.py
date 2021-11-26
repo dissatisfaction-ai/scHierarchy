@@ -9,6 +9,9 @@ from scvi.data import setup_anndata
 from .regression._reference_model import RegressionModel
 from .regression._reference_module import RegressionBackgroundDetectionTechPyroModel
 
+from .logistic._logistic_model import LogisticModel
+from .logistic._logistic_module import HierarchicalLogisticPyroModel
+
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
 try:
@@ -28,7 +31,7 @@ console = Console(force_terminal=True)
 if console.is_jupyter is True:
     console.is_jupyter = False
 ch = RichHandler(show_path=False, console=console, show_time=False)
-formatter = logging.Formatter("mypackage: %(message)s")
+formatter = logging.Formatter("scHierarchy: %(message)s")
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
@@ -38,5 +41,7 @@ logger.propagate = False
 __all__ = [
     "setup_anndata",
     "RegressionModel",
+    "LogisticModel",
+    "HierarchicalLogisticPyroModel",
     "RegressionBackgroundDetectionTechPyroModel",
 ]
