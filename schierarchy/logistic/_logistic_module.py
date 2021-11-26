@@ -101,24 +101,29 @@ class HierarchicalLogisticPyroModel(PyroModule):
 
         f = []
         for i in range(self.n_levels):
+            # create weights for level i
             w_i = pyro.sample(
                 f"weight_level_{i}",
                 dist.Laplace(self.laplace_prior_mu, self.laplace_prior_sigma)
                 .expand([self.n_vars, self.layers_size[i]])
                 .to_event(2),
             )
-
+            # parameter for cluster size weight normalisation w / sqrt(n_cells per cluster)
             n_cells_per_label = self.get_buffer(f"n_cells_per_label_per_level_{i}")
             if i == 0:
+                # computer f for level 0 (it is independent from the previous level as it doesn't exist)
                 f_i = torch.nn.functional.softmax(
                     torch.matmul(x_data, w_i / n_cells_per_label ** 0.5), dim=1
                 )
             else:
-                f_i = torch.zeros((x_data.shape[0], self.layers_size[i])).to(
+                # initiate f for level > 0
+                f_i = torch.ones((x_data.shape[0], self.layers_size[i])).to(
                     x_data.device
                 )
+                # compute f as f_(i) * f_(i-1) for each cluster group under the parent node
+                # multiplication could handle non-tree structures (multiple parents for one child cluster)
                 for parent, children in self.tree[i - 1].items():
-                    f_i[:, children] += (
+                    f_i[:, children] *= (
                         torch.nn.functional.softmax(
                             torch.matmul(
                                 x_data,
@@ -129,6 +134,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                         )
                         * f[i - 1][:, parent, None]
                     )
+            # record level i probabilities as level i+1 depends on them
             f.append(f_i)
             with obs_plate:
                 pyro.deterministic(f"label_prob_{i}", f_i.T)
