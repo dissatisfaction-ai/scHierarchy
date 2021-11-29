@@ -8,6 +8,9 @@ from scvi import _CONSTANTS
 
 
 class HierarchicalLogisticPyroModel(PyroModule):
+
+    prediction = False
+
     def __init__(
         self,
         n_obs,
@@ -71,12 +74,25 @@ class HierarchicalLogisticPyroModel(PyroModule):
         else:
             return None
 
+    @property
+    def _get_fn_args_from_batch(self):
+        if self.prediction:
+            return self._get_fn_args_from_batch_prediction
+        else:
+            return self._get_fn_args_from_batch_training
+
     @staticmethod
-    def _get_fn_args_from_batch(tensor_dict):
+    def _get_fn_args_from_batch_training(tensor_dict):
         x_data = tensor_dict[_CONSTANTS.X_KEY]
         idx = tensor_dict["ind_x"].long().squeeze()
         levels = tensor_dict[_CONSTANTS.CAT_COVS_KEY]
         return (x_data, idx, levels), {}
+
+    @staticmethod
+    def _get_fn_args_from_batch_prediction(tensor_dict):
+        x_data = tensor_dict[_CONSTANTS.X_KEY]
+        idx = tensor_dict["ind_x"].long().squeeze()
+        return (x_data, idx, idx), {}
 
     ############# Define the model ################
 
@@ -138,4 +154,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
             f.append(f_i)
             with obs_plate:
                 pyro.deterministic(f"label_prob_{i}", f_i.T)
-                pyro.sample(f"likelihood_{i}", dist.Categorical(f_i), obs=levels[:, i])
+                if not self.prediction:
+                    pyro.sample(
+                        f"likelihood_{i}", dist.Categorical(f_i), obs=levels[:, i]
+                    )

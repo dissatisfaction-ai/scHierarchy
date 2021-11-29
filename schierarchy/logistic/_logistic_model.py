@@ -218,6 +218,7 @@ class LogisticModel(
             tree=self.tree_,
             **model_kwargs,
         )
+        self.samples = dict()
         self.init_params_ = self._get_init_params(locals())
 
     @staticmethod
@@ -326,6 +327,7 @@ class LogisticModel(
     def export_posterior(
         self,
         adata,
+        prediction: bool = False,
         sample_kwargs: Optional[dict] = None,
         export_slot: str = "mod",
         add_to_varm: list = ["means", "stds", "q05", "q95"],
@@ -343,6 +345,8 @@ class LogisticModel(
         ----------
         adata
             anndata object where results should be saved
+        prediction
+            Prediction mode predicts cell labels on new data.
         sample_kwargs
             arguments for self.sample_posterior (generating and summarising posterior samples), namely:
                 num_samples - number of samples to use (Default = 1000).
@@ -359,9 +363,55 @@ class LogisticModel(
 
         sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
 
-        # generate samples from posterior distributions for all parameters
-        # and compute mean, 5%/95% quantiles and standard deviation
-        self.samples = self.sample_posterior(**sample_kwargs)
+        label_keys = list(
+            self.adata.uns["_scvi"]["extra_categoricals"]["mappings"].keys()
+        )
+
+        # when prediction mode change to evaluation mode and swap adata object
+        if prediction:
+            self.module.eval()
+            self.module.model.prediction = True
+            # use version of this function for prediction
+            self.module._get_fn_args_from_batch = (
+                self.module.model._get_fn_args_from_batch
+            )
+            # resize plates for according to the validation object
+            self.module.model.n_obs = adata.n_obs
+            # create index column
+            adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+            # for minibatch learning, selected indices lay in "ind_x"
+            scvi.data.register_tensor_from_anndata(
+                adata,
+                registry_key="ind_x",
+                adata_attr_name="obs",
+                adata_key_name="_indices",
+            )
+            # if all columns with labels don't exist, create them and fill with 0s
+            if np.all(~np.isin(label_keys, adata.obs.columns)):
+                adata.obs.loc[:, label_keys] = 0
+            # substitute adata object
+            adata_train = self.adata.copy()
+            # self.adata = self._validate_anndata(adata)
+            self.adata = adata
+
+            # generate samples from posterior distributions for all parameters
+            # and compute mean, 5%/95% quantiles and standard deviation
+            self.samples = self.sample_posterior(**sample_kwargs)
+
+            # revert adata object substitution
+            self.adata = adata_train
+            self.module.train()
+            self.module.model.prediction = False
+            # re-set default version of this function
+            self.module._get_fn_args_from_batch = (
+                self.module.model._get_fn_args_from_batch
+            )
+            obs_names = adata.obs_names
+        else:
+            # generate samples from posterior distributions for all parameters
+            # and compute mean, 5%/95% quantiles and standard deviation
+            self.samples = self.sample_posterior(**sample_kwargs)
+            obs_names = self.adata.obs_names
 
         # export posterior distribution summary for all parameters and
         # annotation (model, date, var, obs and cell type names) to anndata object
@@ -370,10 +420,6 @@ class LogisticModel(
         # export estimated expression in each cluster
         # first convert np.arrays to pd.DataFrames with cell type and observation names
         # data frames contain mean, 5%/95% quantiles and standard deviation, denoted by a prefix
-
-        label_keys = list(
-            self.adata.uns["_scvi"]["extra_categoricals"]["mappings"].keys()
-        )
         for i in range(self.n_levels_):
             categories = self.adata.uns["_scvi"]["extra_categoricals"]["mappings"][
                 label_keys[i]
@@ -394,7 +440,7 @@ class LogisticModel(
 
                 sample_df = pd.DataFrame(
                     self.samples[f"post_sample_{k}"].get(f"label_prob_{i}", None),
-                    columns=self.adata.obs_names,
+                    columns=obs_names,
                     index=[f"{k}_label_{label_keys[i]}_{c}" for c in categories],
                 ).T
                 try:
