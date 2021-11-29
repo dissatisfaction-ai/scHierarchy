@@ -380,19 +380,19 @@ class LogisticModel(
             # create index column
             adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
             # for minibatch learning, selected indices lay in "ind_x"
-            scvi.data.register_tensor_from_anndata(
-                adata,
-                registry_key="ind_x",
-                adata_attr_name="obs",
-                adata_key_name="_indices",
-            )
+            # scvi.data.register_tensor_from_anndata(
+            #    adata,
+            #    registry_key="ind_x",
+            #    adata_attr_name="obs",
+            #    adata_key_name="_indices",
+            # )
             # if all columns with labels don't exist, create them and fill with 0s
             if np.all(~np.isin(label_keys, adata.obs.columns)):
                 adata.obs.loc[:, label_keys] = 0
             # substitute adata object
             adata_train = self.adata.copy()
-            # self.adata = self._validate_anndata(adata)
-            self.adata = adata
+            self.adata = self._validate_anndata(adata)
+            # self.adata = adata
 
             # generate samples from posterior distributions for all parameters
             # and compute mean, 5%/95% quantiles and standard deviation
