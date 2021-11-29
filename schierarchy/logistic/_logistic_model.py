@@ -39,16 +39,21 @@ def infer_tree(labels, level_keys):
     List of edges between level len(n_levels - 1 )
 
     """
-    tree_inferred = [{} for i in range(len(level_keys) - 1)]
-    for i in range(len(level_keys) - 1):
-        layer_p = labels.iloc[:, i]
-        layer_ch = labels.iloc[:, i + 1]
-        for j in range(labels.shape[0]):
-            if layer_p[j] not in tree_inferred[i].keys():
-                tree_inferred[i][layer_p[j]] = [layer_ch[j]]
-            else:
-                if layer_ch[j] not in tree_inferred[i][layer_p[j]]:
-                    tree_inferred[i][layer_p[j]].append(layer_ch[j])
+    # for multiple layers of hierarchy
+    if len(level_keys) > 1:
+        tree_inferred = [{} for i in range(len(level_keys) - 1)]
+        for i in range(len(level_keys) - 1):
+            layer_p = labels.iloc[:, i]
+            layer_ch = labels.iloc[:, i + 1]
+            for j in range(labels.shape[0]):
+                if layer_p[j] not in tree_inferred[i].keys():
+                    tree_inferred[i][layer_p[j]] = [layer_ch[j]]
+                else:
+                    if layer_ch[j] not in tree_inferred[i][layer_p[j]]:
+                        tree_inferred[i][layer_p[j]].append(layer_ch[j])
+    # if only one level
+    else:
+        tree_inferred = [list(labels[level_keys[0]].unique())]
 
     return tree_inferred
 
@@ -182,9 +187,9 @@ class LogisticModel(
         super().__init__(adata)
 
         # register categorical levels
-        cat_loc, cat_key = _setup_extra_categorical_covs(adata, level_keys)
+        cat_loc, cat_key = _setup_extra_categorical_covs(self.adata, level_keys)
         scvi.data.register_tensor_from_anndata(
-            adata,
+            self.adata,
             registry_key=_CONSTANTS.CAT_COVS_KEY,
             adata_attr_name=cat_loc,
             adata_key_name=cat_key,
