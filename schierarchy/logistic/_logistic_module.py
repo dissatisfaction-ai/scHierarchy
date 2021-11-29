@@ -65,9 +65,14 @@ class HierarchicalLogisticPyroModel(PyroModule):
     @property
     def layers_size(self):
         if self.tree is not None:
-            return [len(x) for x in self.tree] + [
-                len([item for sublist in self.tree[-1].values() for item in sublist])
-            ]
+            if len(self.tree) > 1:
+                return [len(x) for x in self.tree] + [
+                    len(
+                        [item for sublist in self.tree[-1].values() for item in sublist]
+                    )
+                ]
+            else:
+                return [len(self.tree[0])]
         else:
             return None
 
