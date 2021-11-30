@@ -83,6 +83,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         n_batch,
         cell_state_mat,
         tree,
+        n_levels,
         n_groups: int = 50,
         detection_mean=1 / 2,
         detection_alpha=200.0,
@@ -110,6 +111,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         self.n_factors = n_factors
         self.n_batch = n_batch
         self.n_groups = n_groups
+        self.n_levels = n_levels
         self.tree = tree
 
         self.m_g_gene_level_prior = m_g_gene_level_prior
@@ -246,6 +248,15 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
             },
         }
 
+    @property
+    def layers_size(self):
+        if self.tree is not None:
+            return [len(x) for x in self.tree] + [
+                len([item for sublist in self.tree[-1].values() for item in sublist])
+            ]
+        else:
+            return None
+
     def forward(self, x_data, idx, batch_index):
 
         obs2sample = one_hot(batch_index, self.n_batch)
@@ -370,8 +381,8 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         with obs_plate as ind:
             w_sf_mu = z_sr_groups_factors @ x_fr_group2fact
 
-            k = "w_sf"
-            w_sf = pyro.sample(
+            k = "w_weights_sf"
+            w_weights_sf = pyro.sample(
                 k,
                 dist.Gamma(
                     w_sf_mu * self.w_sf_mean_var_ratio_tensor,
@@ -390,8 +401,43 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                         self.init_alpha_tt,
                         self.init_alpha_tt / getattr(self, f"init_val_{k}")[ind],
                     ),
-                    obs=w_sf,
+                    obs=w_weights_sf,
                 )  # (self.n_obs, self.n_factors)
+
+        # =====================Use hierarchical annotations ======================= #
+        with obs_plate as ind:
+            f = []
+            for i in range(self.n_levels):
+                # subset weights for level i
+                if i == 0:
+                    ind = list(range(self.layers_size[i]))
+                else:
+                    ind = list(
+                        range(
+                            self.layers_size[i - 1],
+                            self.layers_size[i - 1] + self.layers_size[i],
+                        )
+                    )
+                w_i = w_weights_sf[:, ind]
+                if i == 0:
+                    # compute f for level 0 (it is independent from the previous level as it doesn't exist)
+                    f_i = torch.nn.functional.softmax(w_i, dim=1)
+                else:
+                    # initiate f for level > 0
+                    f_i = self.ones.expand(w_i.size())
+                    # f_i = torch.ones_like(ind).to(x_data.device)
+                    # compute f as f_(i) * f_(i-1) for each cluster group under the parent node
+                    # multiplication could handle non-tree structures (multiple parents for one child cluster)
+                    for parent, children in self.tree[i - 1].items():
+                        f_i[:, children] *= (
+                            torch.nn.functional.softmax(w_i[:, children], dim=1)
+                            * f[i - 1][:, parent, None]
+                        )
+                # record level i probabilities as level i+1 depends on them
+                f.append(f_i)
+            w_sf = pyro.deterministic(
+                "w_sf", torch.concat(f, axis=0) * n_s_cells_per_location
+            )
 
         # =====================Location-specific detection efficiency ======================= #
         # y_s with hierarchical mean prior

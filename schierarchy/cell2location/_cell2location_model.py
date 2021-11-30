@@ -34,6 +34,7 @@ class HierarchicalCell2location(Cell2location):
         adata: AnnData,
         cell_state_df: pd.DataFrame,
         tree: dict,
+        n_levels: int,
         model_class: Optional[PyroModule] = None,
         detection_mean_per_sample: bool = False,
         detection_mean_correction: float = 1.0,
@@ -52,6 +53,7 @@ class HierarchicalCell2location(Cell2location):
         )
 
         self.tree_ = tree
+        self.n_levels_ = n_levels
         model_kwargs["tree"] = tree
 
         self.module = Cell2locationBaseModule(
@@ -61,6 +63,8 @@ class HierarchicalCell2location(Cell2location):
             n_factors=self.n_factors_,
             n_batch=self.summary_stats["n_batch"],
             cell_state_mat=self.cell_state_df_.values.astype("float32"),
+            tree=self.tree_,
+            n_levels=self.n_levels_,
             **model_kwargs,
         )
         self._model_summary_string = f'cell2location model with the following params: \nn_factors: {self.n_factors_} \nn_batch: {self.summary_stats["n_batch"]} '
