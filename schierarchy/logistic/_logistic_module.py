@@ -18,7 +18,8 @@ class HierarchicalLogisticPyroModel(PyroModule):
         n_levels,
         n_cells_per_label_per_level,
         tree,
-        laplace_prior={"mu": 0.0, "sigma": 0.5},
+        laplace_prior={"mu": 0.0, "sigma": 0.5, "exp_rate": 3.0},
+        laplace_learning_mode="fixed-sigma",
         init_vals: Optional[dict] = None,
     ):
         """
@@ -30,6 +31,8 @@ class HierarchicalLogisticPyroModel(PyroModule):
         n_batch
         n_extra_categoricals
         laplace_prior
+        laplace_learning_mode = 'fixed-sigma', 'learn-sigma-single', 'learn-sigma-gene', 'learn-sigma-celltype',
+                                'learn-sigma-gene-celltype'
         """
 
         ############# Initialise parameters ################
@@ -41,6 +44,16 @@ class HierarchicalLogisticPyroModel(PyroModule):
         self.n_cells_per_label_per_level = n_cells_per_label_per_level
         self.tree = tree
         self.laplace_prior = laplace_prior
+        self.laplace_learning_mode = laplace_learning_mode
+
+        if self.laplace_learning_mode not in [
+            "fixed-sigma",
+            "learn-sigma-single",
+            "learn-sigma-gene",
+            "learn-sigma-celltype",
+            "learn-sigma-gene-celltype",
+        ]:
+            raise NotImplementedError
 
         if (init_vals is not None) & (type(init_vals) is dict):
             self.np_init_vals = init_vals
@@ -61,6 +74,11 @@ class HierarchicalLogisticPyroModel(PyroModule):
         self.register_buffer(
             "laplace_prior_sigma",
             torch.tensor(self.laplace_prior["sigma"]),
+        )
+
+        self.register_buffer(
+            "exponential_prior_rate",
+            torch.tensor(self.laplace_prior["exp_rate"]),
         )
 
         self.register_buffer("ones", torch.ones((1, 1)))
@@ -123,12 +141,69 @@ class HierarchicalLogisticPyroModel(PyroModule):
         f = []
         for i in range(self.n_levels):
             # create weights for level i
-            w_i = pyro.sample(
-                f"weight_level_{i}",
-                dist.Laplace(self.laplace_prior_mu, self.laplace_prior_sigma)
-                .expand([self.n_vars, self.layers_size[i]])
-                .to_event(2),
-            )
+            if self.laplace_learning_mode == "fixed-sigma":
+                w_i = pyro.sample(
+                    f"weight_level_{i}",
+                    dist.Laplace(self.laplace_prior_mu, self.laplace_prior_sigma)
+                    .expand([self.n_vars, self.layers_size[i]])
+                    .to_event(2),
+                )
+            elif self.laplace_learning_mode == "learn-sigma-single":
+                sigma_i = pyro.sample(
+                    f"sigma_level_{i}", dist.Exponential(self.exponential_prior_rate)
+                )
+                w_i = pyro.sample(
+                    f"weight_level_{i}",
+                    dist.Laplace(self.laplace_prior_mu, sigma_i)
+                    .expand([self.n_vars, self.layers_size[i]])
+                    .to_event(2),
+                )
+            elif self.laplace_learning_mode == "learn-sigma-gene":
+                sigma_ig = pyro.sample(
+                    f"sigma_ig_level_{i}",
+                    dist.Exponential(self.exponential_prior_rate)
+                    .expand([self.n_vars])
+                    .to_event(1),
+                )
+                w_i = pyro.sample(
+                    f"weight_level_{i}",
+                    dist.Laplace(self.laplace_prior_mu, sigma_ig[:, None])
+                    .expand([self.n_vars, self.layers_size[i]])
+                    .to_event(2),
+                )
+            elif self.laplace_learning_mode == "learn-sigma-celltype":
+                sigma_ic = pyro.sample(
+                    f"sigma_ic_level_{i}",
+                    dist.Exponential(self.exponential_prior_rate)
+                    .expand([self.layers_size[i]])
+                    .to_event(1),
+                )
+                w_i = pyro.sample(
+                    f"weight_level_{i}",
+                    dist.Laplace(self.laplace_prior_mu, sigma_ic[None, :])
+                    .expand([self.n_vars, self.layers_size[i]])
+                    .to_event(2),
+                )
+            elif self.laplace_learning_mode == "learn-sigma-gene-celltype":
+                sigma_ig = pyro.sample(
+                    f"sigma_ig_level_{i}",
+                    dist.Exponential(self.exponential_prior_rate)
+                    .expand([self.n_vars])
+                    .to_event(1),
+                )
+
+                sigma_ic = pyro.sample(
+                    f"sigma_ic_level_{i}",
+                    dist.Exponential(self.exponential_prior_rate)
+                    .expand([self.layers_size[i]])
+                    .to_event(1),
+                )
+                w_i = pyro.sample(
+                    f"weight_level_{i}",
+                    dist.Laplace(
+                        self.laplace_prior_mu, sigma_ig[:, None] @ sigma_ic[None, :]
+                    ).to_event(2),
+                )
             # parameter for cluster size weight normalisation w / sqrt(n_cells per cluster)
             n_cells_per_label = self.get_buffer(f"n_cells_per_label_per_level_{i}")
             if i == 0:
