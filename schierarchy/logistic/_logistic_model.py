@@ -43,8 +43,8 @@ def infer_tree(labels, level_keys):
     if len(level_keys) > 1:
         tree_inferred = [{} for i in range(len(level_keys) - 1)]
         for i in range(len(level_keys) - 1):
-            layer_p = labels.iloc[:, i]
-            layer_ch = labels.iloc[:, i + 1]
+            layer_p = labels.loc[:, level_keys[i]]
+            layer_ch = labels.loc[:, level_keys[i + 1]]
             for j in range(labels.shape[0]):
                 if layer_p[j] not in tree_inferred[i].keys():
                     tree_inferred[i][layer_p[j]] = [layer_ch[j]]
