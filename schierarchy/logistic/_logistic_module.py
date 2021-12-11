@@ -150,7 +150,8 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 )
             elif self.laplace_learning_mode == "learn-sigma-single":
                 sigma_i = pyro.sample(
-                    f"sigma_level_{i}", dist.Exponential(self.exponential_prior_rate)
+                    f"sigma_level_{i}",
+                    dist.Exponential(self.exponential_prior_rate).expand([1, 1]),
                 )
                 w_i = pyro.sample(
                     f"weight_level_{i}",
