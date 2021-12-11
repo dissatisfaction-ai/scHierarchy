@@ -24,12 +24,12 @@ from ._logistic_module import HierarchicalLogisticPyroModel
 logger = logging.getLogger(__name__)
 
 
-def infer_tree(labels, level_keys):
+def infer_tree(labels_df, level_keys):
     """
 
     Parameters
     ----------
-    labels
+    labels_df
         DataFrame with annotations
     level_keys
         List of column names from top to bottom levels (from less detailed to more detailed)
@@ -43,9 +43,9 @@ def infer_tree(labels, level_keys):
     if len(level_keys) > 1:
         tree_inferred = [{} for i in range(len(level_keys) - 1)]
         for i in range(len(level_keys) - 1):
-            layer_p = labels.loc[:, level_keys[i]]
-            layer_ch = labels.loc[:, level_keys[i + 1]]
-            for j in range(labels.shape[0]):
+            layer_p = labels_df.loc[:, level_keys[i]]
+            layer_ch = labels_df.loc[:, level_keys[i + 1]]
+            for j in range(labels_df.shape[0]):
                 if layer_p[j] not in tree_inferred[i].keys():
                     tree_inferred[i][layer_p[j]] = [layer_ch[j]]
                 else:
@@ -53,7 +53,7 @@ def infer_tree(labels, level_keys):
                         tree_inferred[i][layer_p[j]].append(layer_ch[j])
     # if only one level
     else:
-        tree_inferred = [list(labels[level_keys[0]].unique())]
+        tree_inferred = [list(labels_df[level_keys[0]].unique())]
 
     return tree_inferred
 
