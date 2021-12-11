@@ -54,7 +54,8 @@ class HierarchicalCell2location(Cell2location):
 
         self.tree_ = tree
         self.n_levels_ = n_levels
-        model_kwargs["tree"] = tree
+        # model_kwargs["tree"] = tree
+        # model_kwargs["n_levels"] = self.n_levels_
 
         self.module = Cell2locationBaseModule(
             model=model_class,

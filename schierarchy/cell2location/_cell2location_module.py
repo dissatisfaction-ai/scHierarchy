@@ -77,13 +77,13 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
 
     def __init__(
         self,
-        n_obs,
-        n_vars,
-        n_factors,
-        n_batch,
-        cell_state_mat,
-        tree,
-        n_levels,
+        n_obs: int,
+        n_vars: int,
+        n_factors: int,
+        n_batch: int,
+        cell_state_mat: np.array = None,
+        tree: dict = None,
+        n_levels: int = None,
         n_groups: int = 50,
         detection_mean=1 / 2,
         detection_alpha=200.0,
@@ -424,7 +424,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                     f_i = torch.nn.functional.softmax(w_i, dim=1)
                 else:
                     # initiate f for level > 0
-                    f_i = self.ones.expand(w_i.size())
+                    f_i = self.ones.expand(w_i.size()).clone()
                     # f_i = torch.ones_like(ind).to(x_data.device)
                     # compute f as f_(i) * f_(i-1) for each cluster group under the parent node
                     # multiplication could handle non-tree structures (multiple parents for one child cluster)
@@ -436,7 +436,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                 # record level i probabilities as level i+1 depends on them
                 f.append(f_i)
             w_sf = pyro.deterministic(
-                "w_sf", torch.concat(f, axis=0) * n_s_cells_per_location
+                "w_sf", torch.concat(f, axis=1) * n_s_cells_per_location
             )
 
         # =====================Location-specific detection efficiency ======================= #
