@@ -108,6 +108,8 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         w_sf_mean_var_ratio=5.0,
         init_vals: Optional[dict] = None,
         init_alpha=20.0,
+        use_background_p: bool = False,
+        background_p_prior={"alpha": 1.0, "beta": 10.0},
     ):
 
         super().__init__()
@@ -129,6 +131,8 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
         detection_hyp_prior["mean"] = detection_mean
         detection_hyp_prior["alpha"] = detection_alpha
         self.detection_hyp_prior = detection_hyp_prior
+        self.use_background_p = use_background_p
+        self.background_p_prior = background_p_prior
 
         if (init_vals is not None) & (type(init_vals) is dict):
             self.np_init_vals = init_vals
@@ -209,10 +213,20 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
             "w_sf_mean_var_ratio_tensor", torch.tensor(self.w_sf_mean_var_ratio)
         )
 
+        self.register_buffer(
+            "background_p_prior_alpha",
+            torch.tensor(self.background_p_prior["alpha"]),
+        )
+        self.register_buffer(
+            "background_p_prior_beta",
+            torch.tensor(self.background_p_prior["beta"]),
+        )
+
         self.register_buffer("n_factors_tensor", torch.tensor(self.n_factors))
         self.register_buffer("n_groups_tensor", torch.tensor(self.n_groups))
 
         self.register_buffer("ones", torch.ones((1, 1)))
+        self.register_buffer("zeros", torch.zeros((1, 1)))
         self.register_buffer("ones_1_n_groups", torch.ones((1, self.n_groups)))
         self.register_buffer("ones_n_batch_1", torch.ones((self.n_batch, 1)))
         self.register_buffer("eps", torch.tensor(1e-8))
@@ -411,6 +425,20 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                 )  # (self.n_obs, self.n_factors)
 
         # =====================Use hierarchical annotations ======================= #
+        if self.use_background_p:
+            background_p = pyro.sample(
+                "background_p",
+                dist.Gamma(self.background_p_prior_alpha, self.background_p_prior_beta)
+                .expand(
+                    [1, sum([self.layers_size[i] for i in range(0, self.n_levels - 1)])]
+                )
+                .to_event(2),
+            )  # (number of clusters in parent layers, 1)
+        else:
+            background_p = self.zeros.expand(
+                [1, sum([self.layers_size[i] for i in range(0, self.n_levels - 1)])]
+            ).clone()
+
         with obs_plate as ind:
             f = []
             for i in range(self.n_levels):
@@ -431,12 +459,26 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                 else:
                     # initiate f for level > 0
                     f_i = self.ones.expand(w_i.size()).clone()
+                    # get indices of parent layer for background term
+                    if i == 1:
+                        ind_b = list(range(self.layers_size[i - 1]))
+                    else:
+                        ind_b = list(
+                            range(
+                                self.layers_size[i - 2],
+                                self.layers_size[i - 2] + self.layers_size[i - 1],
+                            )
+                        )
+                    background_p_ = background_p[:, ind_b]
                     # f_i = torch.ones_like(ind).to(x_data.device)
                     # compute f as f_(i) * f_(i-1) for each cluster group under the parent node
                     # multiplication could handle non-tree structures (multiple parents for one child cluster)
                     for parent, children in self.tree[i - 1].items():
                         f_i[:, children] *= (
-                            normalise_by_sum(w_i[:, children], axis=1)
+                            normalise_by_sum(
+                                w_i[:, children] + background_p_[:, parent, None],
+                                axis=1,
+                            )
                             * f[i - 1][:, parent, None]
                         )
                 # record level i probabilities as level i+1 depends on them
