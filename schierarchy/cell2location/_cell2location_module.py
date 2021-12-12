@@ -15,6 +15,12 @@ from scvi.nn import one_hot
 #    pass
 
 
+def normalise_by_sum(x, axis=1):
+    shape = list(x.shape)
+    shape[axis] = 1
+    return x / x.sum(axis=axis).reshape(shape)
+
+
 class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGeneAlphaPyroModel(
     PyroModule
 ):
@@ -421,7 +427,7 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                 w_i = w_weights_sf[:, ind]
                 if i == 0:
                     # compute f for level 0 (it is independent from the previous level as it doesn't exist)
-                    f_i = torch.nn.functional.softmax(w_i, dim=1)
+                    f_i = normalise_by_sum(w_i, axis=1)
                 else:
                     # initiate f for level > 0
                     f_i = self.ones.expand(w_i.size()).clone()
@@ -430,14 +436,13 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                     # multiplication could handle non-tree structures (multiple parents for one child cluster)
                     for parent, children in self.tree[i - 1].items():
                         f_i[:, children] *= (
-                            torch.nn.functional.softmax(w_i[:, children], dim=1)
+                            normalise_by_sum(w_i[:, children], axis=1)
                             * f[i - 1][:, parent, None]
                         )
                 # record level i probabilities as level i+1 depends on them
                 f.append(f_i)
-            w_sf = pyro.deterministic(
-                "w_sf", torch.concat(f, axis=1) * n_s_cells_per_location
-            )
+            w_prob_sf = pyro.deterministic("w_prob_sf", torch.concat(f, axis=1))
+            w_sf = pyro.deterministic("w_sf", w_prob_sf * n_s_cells_per_location)
 
         # =====================Location-specific detection efficiency ======================= #
         # y_s with hierarchical mean prior
@@ -534,10 +539,6 @@ class LocationModelLinearDependentWMultiExperimentLocationBackgroundNormLevelGen
                 (w_sf @ self.cell_state) * m_g + (obs2sample @ s_g_gene_add)
             ) * detection_y_s
             alpha = obs2sample @ (self.ones / alpha_g_inverse.pow(2))
-            # convert mean and overdispersion to total count and logits
-            # total_count, logits = _convert_mean_disp_to_counts_logits(
-            #    mu, alpha, eps=self.eps
-            # )
 
             # =====================DATA likelihood ======================= #
             # Likelihood (sampling distribution) of data_target & add overdispersion via NegativeBinomial
