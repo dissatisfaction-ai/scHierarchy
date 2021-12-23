@@ -24,7 +24,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         n_levels,
         n_cells_per_label_per_level,
         tree,
-        weights_prior={"alpha": 0.1, "beta": 1},
+        weights_prior={"alpha": 0.1, "beta": 1, "alpha_hierarchical": 0.3},
         learning_mode="fixed-sigma",
         init_vals: Optional[dict] = None,
         use_softmax: bool = False,
@@ -39,7 +39,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         n_extra_categoricals
         laplace_prior
         learning_mode = 'fixed-sigma', 'learn-sigma-single', 'learn-sigma-gene', 'learn-sigma-celltype',
-                                'learn-sigma-gene-celltype'
+                                'learn-sigma-gene-celltype', 'learn-sigma-gene-hierarchical'
         """
 
         ############# Initialise parameters ################
@@ -60,6 +60,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
             "learn-sigma-gene",
             "learn-sigma-celltype",
             "learn-sigma-gene-celltype",
+            "learn-sigma-gene-hierarchical",
         ]:
             raise NotImplementedError
 
@@ -78,10 +79,13 @@ class HierarchicalLogisticPyroModel(PyroModule):
             "weights_prior_alpha",
             torch.tensor(self.weights_prior["alpha"]),
         )
-
         self.register_buffer(
             "weights_prior_beta",
             torch.tensor(self.weights_prior["beta"]),
+        )
+        self.register_buffer(
+            "weights_prior_alpha_hierarchical",
+            torch.tensor(self.weights_prior["alpha_hierarchical"]),
         )
 
         self.register_buffer("ones", torch.ones((1, 1)))
@@ -179,6 +183,32 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 w_i = pyro.sample(
                     f"weight_level_{i}",
                     dist.Gamma(self.weights_prior_alpha, self.ones / sigma_ig[:, None])
+                    .expand([self.n_vars, self.layers_size[i]])
+                    .to_event(2),
+                )
+            elif self.learning_mode == "learn-sigma-gene-hierarchical":
+                if i == 0:
+                    sigma_ig = pyro.sample(
+                        "sigma_ig",
+                        dist.Exponential(self.weights_prior_beta)
+                        .expand([self.n_vars])
+                        .to_event(1),
+                    )
+                    sigma_ig_level = pyro.sample(
+                        "sigma_ig_level",
+                        dist.Gamma(
+                            self.weights_prior_alpha_hierarchical,
+                            self.ones / sigma_ig[:, None],
+                        )
+                        .expand([self.n_vars, self.n_levels])
+                        .to_event(2),
+                    )
+                w_i = pyro.sample(
+                    f"weight_level_{i}",
+                    dist.Gamma(
+                        self.weights_prior_alpha,
+                        self.ones / sigma_ig_level[:, i][:, None],
+                    )
                     .expand([self.n_vars, self.layers_size[i]])
                     .to_event(2),
                 )
