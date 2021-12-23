@@ -68,7 +68,11 @@ def test_hierarchical_logist_prediction():
     LogisticModel.setup_anndata(dataset, layer="cdf")
 
     # train regression model to get signatures of cell types
-    sc_model = LogisticModel(dataset, level_keys=level_keys)
+    sc_model = LogisticModel(
+        dataset,
+        level_keys=level_keys,
+        model_class=HierarchicalLogisticPyroModel,
+    )
     # test full data training
     sc_model.train(max_epochs=10, batch_size=None)
     # test prediction
