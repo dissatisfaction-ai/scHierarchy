@@ -7,6 +7,12 @@ from pyro.nn import PyroModule
 from scvi import _CONSTANTS
 
 
+def normalise_by_sum(x, dim=1):
+    shape = list(x.shape)
+    shape[dim] = 1
+    return x / x.sum(axis=dim).reshape(shape)
+
+
 class HierarchicalLogisticPyroModel(PyroModule):
 
     prediction = False
@@ -21,6 +27,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         weights_prior={"alpha": 0.1, "beta": 1},
         learning_mode="fixed-sigma",
         init_vals: Optional[dict] = None,
+        use_softmax: bool = False,
     ):
         """
 
@@ -45,6 +52,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         self.tree = tree
         self.weights_prior = weights_prior
         self.learning_mode = learning_mode
+        self.use_softmax = use_softmax
 
         if self.learning_mode not in [
             "fixed-sigma",
@@ -91,6 +99,13 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 return [len(self.tree[0])]
         else:
             return None
+
+    @property
+    def normalise_by_sum(self):
+        if self.use_softmax:
+            return torch.nn.functional.softmax
+        else:
+            return normalise_by_sum
 
     @property
     def _get_fn_args_from_batch(self):
@@ -205,7 +220,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
             n_cells_per_label = self.get_buffer(f"n_cells_per_label_per_level_{i}")
             if i == 0:
                 # compute f for level 0 (independent)
-                f_i = torch.nn.functional.softmax(
+                f_i = normalise_by_sum(
                     torch.matmul(x_data, w_i / n_cells_per_label ** 0.5), dim=1
                 )
             else:
@@ -217,7 +232,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 # multiplication could handle non-tree structures (multiple parents for one child cluster)
                 for parent, children in self.tree[i - 1].items():
                     f_i[:, children] *= (
-                        torch.nn.functional.softmax(
+                        normalise_by_sum(
                             torch.matmul(
                                 x_data,
                                 w_i[:, children]
