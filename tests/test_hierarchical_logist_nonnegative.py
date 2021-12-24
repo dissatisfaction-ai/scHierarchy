@@ -37,7 +37,7 @@ def test_hierarchical_logist():
             sc_model = LogisticModel(
                 dataset,
                 level_keys=level_keys,
-                laplace_learning_mode=learning_mode,
+                learning_mode=learning_mode,
                 model_class=HierarchicalLogisticPyroModel,
                 guide_class=guide_class,
             )
