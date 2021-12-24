@@ -163,14 +163,14 @@ class HierarchicalLogisticPyroModel(PyroModule):
                     self.weights_prior_alpha * (self.ones + self.ones),
                     self.ones + self.ones,
                 )
-                .expand([self.n_levels])
+                .expand([1, self.n_levels])
                 .to_event(1),
             )
         else:
-            level_alpha = self.weights_prior_alpha.expand([self.n_levels]).clone()
+            level_alpha = self.weights_prior_alpha.expand([1, self.n_levels]).clone()
         # for loop across layers
         for i in range(self.n_levels):
-            weights_prior_alpha = level_alpha[i]
+            weights_prior_alpha = level_alpha[0, i]
             # create weights for level i
             if self.learning_mode == "fixed-sigma":
                 w_i = pyro.sample(
