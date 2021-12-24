@@ -32,29 +32,31 @@ def test_hierarchical_logist():
         "learn-sigma-gene-hierarchical",
     ]:
         for guide_class in [AutoNormalMessenger, AutoHierarchicalNormalMessenger]:
-            LogisticModel.setup_anndata(dataset, layer="cdf")
-            # train regression model to get signatures of cell types
-            sc_model = LogisticModel(
-                dataset,
-                level_keys=level_keys,
-                learning_mode=learning_mode,
-                model_class=HierarchicalLogisticPyroModel,
-                guide_class=guide_class,
-            )
-            # test full data training
-            sc_model.train(max_epochs=10, batch_size=None)
-            # test minibatch training
-            sc_model.train(max_epochs=10, batch_size=100)
-            # export the estimated cell abundance (summary of the posterior distribution)
-            dataset = sc_model.export_posterior(
-                dataset, sample_kwargs={"num_samples": 10}
-            )
-            # test plot_QC'
-            # sc_model.plot_QC()
-            # test save/load
-            sc_model.save(save_path, overwrite=True, save_anndata=True)
-            sc_model = LogisticModel.load(save_path)
-            os.system(f"rm -rf {save_path}")
+            for learn_alpha in [False, True]:
+                LogisticModel.setup_anndata(dataset, layer="cdf")
+                # train regression model to get signatures of cell types
+                sc_model = LogisticModel(
+                    dataset,
+                    level_keys=level_keys,
+                    learning_mode=learning_mode,
+                    model_class=HierarchicalLogisticPyroModel,
+                    guide_class=guide_class,
+                    learn_alpha=learn_alpha,
+                )
+                # test full data training
+                sc_model.train(max_epochs=10, batch_size=None)
+                # test minibatch training
+                sc_model.train(max_epochs=10, batch_size=100)
+                # export the estimated cell abundance (summary of the posterior distribution)
+                dataset = sc_model.export_posterior(
+                    dataset, sample_kwargs={"num_samples": 10}
+                )
+                # test plot_QC'
+                # sc_model.plot_QC()
+                # test save/load
+                sc_model.save(save_path, overwrite=True, save_anndata=True)
+                sc_model = LogisticModel.load(save_path)
+                os.system(f"rm -rf {save_path}")
 
 
 def test_hierarchical_logist_prediction():

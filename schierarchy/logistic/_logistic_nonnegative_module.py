@@ -26,6 +26,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         tree,
         weights_prior={"alpha": 0.1, "beta": 1.0, "alpha_hierarchical": 0.3},
         learning_mode="fixed-sigma",
+        learn_alpha: bool = False,
         init_vals: Optional[dict] = None,
         use_softmax: bool = False,
     ):
@@ -52,6 +53,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         self.tree = tree
         self.weights_prior = weights_prior
         self.learning_mode = learning_mode
+        self.learn_alpha = learn_alpha
         self.use_softmax = use_softmax
 
         if self.learning_mode not in [
@@ -153,12 +155,27 @@ class HierarchicalLogisticPyroModel(PyroModule):
         obs_plate = self.create_plates(x_data, idx, levels)
 
         f = []
+        # learnable sparsity
+        if self.learn_alpha:
+            level_alpha = pyro.sample(
+                "level_alpha",
+                dist.Gamma(
+                    self.weights_prior_alpha * (self.ones + self.ones),
+                    self.ones + self.ones,
+                )
+                .expand([self.n_levels])
+                .to_event(1),
+            )
+        else:
+            level_alpha = self.weights_prior_alpha.expand([self.n_levels]).clone()
+        # for loop across layers
         for i in range(self.n_levels):
+            weights_prior_alpha = level_alpha[i]
             # create weights for level i
             if self.learning_mode == "fixed-sigma":
                 w_i = pyro.sample(
                     f"weight_level_{i}",
-                    dist.Gamma(self.weights_prior_alpha, self.weights_prior_beta)
+                    dist.Gamma(weights_prior_alpha, self.weights_prior_beta)
                     .expand([self.n_vars, self.layers_size[i]])
                     .to_event(2),
                 )
@@ -169,7 +186,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 )
                 w_i = pyro.sample(
                     f"weight_level_{i}",
-                    dist.Gamma(self.weights_prior_alpha, self.ones / sigma_i)
+                    dist.Gamma(weights_prior_alpha, self.ones / sigma_i)
                     .expand([self.n_vars, self.layers_size[i]])
                     .to_event(2),
                 )
@@ -182,7 +199,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 )
                 w_i = pyro.sample(
                     f"weight_level_{i}",
-                    dist.Gamma(self.weights_prior_alpha, self.ones / sigma_ig[:, None])
+                    dist.Gamma(weights_prior_alpha, self.ones / sigma_ig[:, None])
                     .expand([self.n_vars, self.layers_size[i]])
                     .to_event(2),
                 )
@@ -206,7 +223,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 w_i = pyro.sample(
                     f"weight_level_{i}",
                     dist.Gamma(
-                        self.weights_prior_alpha,
+                        weights_prior_alpha,
                         self.ones / sigma_ig_level[:, i][:, None],
                     )
                     .expand([self.n_vars, self.layers_size[i]])
@@ -221,7 +238,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 )
                 w_i = pyro.sample(
                     f"weight_level_{i}",
-                    dist.Gamma(self.weights_prior_alpha, self.ones / sigma_ic[None, :])
+                    dist.Gamma(weights_prior_alpha, self.ones / sigma_ic[None, :])
                     .expand([self.n_vars, self.layers_size[i]])
                     .to_event(2),
                 )
@@ -242,7 +259,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 w_i = pyro.sample(
                     f"weight_level_{i}",
                     dist.Gamma(
-                        self.weights_prior_alpha,
+                        weights_prior_alpha,
                         self.ones / (sigma_ig[:, None] @ sigma_ic[None, :]),
                     ).to_event(2),
                 )
