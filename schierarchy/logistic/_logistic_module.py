@@ -208,7 +208,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
             # parameter for cluster size weight normalisation w / sqrt(n_cells per cluster)
             n_cells_per_label = self.get_buffer(f"n_cells_per_label_per_level_{i}")
             if i == 0:
-                # computer f for level 0 (it is independent from the previous level as it doesn't exist)
+                # compute f for level 0 (TODO what is f?)
                 f_i = torch.nn.functional.softmax(
                     torch.matmul(x_data, w_i / n_cells_per_label ** 0.5), dim=1
                 )
