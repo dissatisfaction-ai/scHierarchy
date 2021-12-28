@@ -3,6 +3,7 @@ from typing import Optional
 import pyro
 import pyro.distributions as dist
 import torch
+from pyro.distributions.transforms import SoftplusTransform
 from pyro.nn import PyroModule
 from scvi import _CONSTANTS
 
@@ -25,6 +26,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         n_cells_per_label_per_level,
         tree,
         weights_prior={"alpha": 0.1, "beta": 1.0, "alpha_hierarchical": 0.3},
+        bias_prior={"mean": -10.0, "sigma": 3.0},
         learning_mode="fixed-sigma",
         learn_alpha: bool = False,
         init_vals: Optional[dict] = None,
@@ -52,6 +54,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         self.n_cells_per_label_per_level = n_cells_per_label_per_level
         self.tree = tree
         self.weights_prior = weights_prior
+        self.bias_prior = bias_prior
         self.learning_mode = learning_mode
         self.learn_alpha = learn_alpha
         self.use_softmax = use_softmax
@@ -65,6 +68,8 @@ class HierarchicalLogisticPyroModel(PyroModule):
             "learn-sigma-gene-hierarchical",
         ]:
             raise NotImplementedError
+
+        self.softplus = SoftplusTransform()
 
         if (init_vals is not None) & (type(init_vals) is dict):
             self.np_init_vals = init_vals
@@ -84,6 +89,14 @@ class HierarchicalLogisticPyroModel(PyroModule):
         self.register_buffer(
             "weights_prior_beta",
             torch.tensor(self.weights_prior["beta"]),
+        )
+        self.register_buffer(
+            "bias_prior_mu",
+            torch.tensor(self.bias_prior["mu"]),
+        )
+        self.register_buffer(
+            "bias_prior_sigma",
+            torch.tensor(self.bias_prior["sigma"]),
         )
         self.register_buffer(
             "weights_prior_alpha_hierarchical",
@@ -170,6 +183,12 @@ class HierarchicalLogisticPyroModel(PyroModule):
             level_alpha = self.weights_prior_alpha.expand([1, self.n_levels]).clone()
         # for loop across layers
         for i in range(self.n_levels):
+            b_i = pyro.sample(
+                f"bias_level_{i}",
+                dist.Normal(self.bias_prior_mu, self.bias_prior_sigma)
+                .expand([1, self.layers_size[i]])
+                .to_event(2),
+            )
             weights_prior_alpha = level_alpha[0, i]
             # create weights for level i
             if self.learning_mode == "fixed-sigma":
@@ -268,7 +287,10 @@ class HierarchicalLogisticPyroModel(PyroModule):
             if i == 0:
                 # compute f for level 0 (independent)
                 f_i = normalise_by_sum(
-                    torch.matmul(x_data, w_i / n_cells_per_label ** 0.5), dim=1
+                    self.softplus(
+                        torch.matmul(x_data, w_i / n_cells_per_label ** 0.5) + b_i
+                    ),
+                    dim=1,
                 )
             else:
                 # initiate f for level > 0
@@ -280,10 +302,13 @@ class HierarchicalLogisticPyroModel(PyroModule):
                 for parent, children in self.tree[i - 1].items():
                     f_i[:, children] *= (
                         normalise_by_sum(
-                            torch.matmul(
-                                x_data,
-                                w_i[:, children]
-                                / (n_cells_per_label[children])[None, :] ** 0.5,
+                            self.softplus(
+                                torch.matmul(
+                                    x_data,
+                                    w_i[:, children]
+                                    / (n_cells_per_label[children])[None, :] ** 0.5,
+                                )
+                                + b_i[:, children]
                             ),
                             dim=1,
                         )
