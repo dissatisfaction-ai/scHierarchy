@@ -282,14 +282,10 @@ class HierarchicalLogisticPyroModel(PyroModule):
                         self.ones / (sigma_ig[:, None] @ sigma_ic[None, :]),
                     ).to_event(2),
                 )
-            # parameter for cluster size weight normalisation w / sqrt(n_cells per cluster)
-            n_cells_per_label = self.get_buffer(f"n_cells_per_label_per_level_{i}")
             if i == 0:
                 # compute f for level 0 (independent)
                 f_i = normalise_by_sum(
-                    self.softplus(
-                        torch.matmul(x_data, w_i / n_cells_per_label ** 0.5) + b_i
-                    ),
+                    self.softplus(torch.matmul(x_data, w_i) + b_i),
                     dim=1,
                 )
             else:
@@ -305,8 +301,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
                             self.softplus(
                                 torch.matmul(
                                     x_data,
-                                    w_i[:, children]
-                                    / (n_cells_per_label[children])[None, :] ** 0.5,
+                                    w_i[:, children],
                                 )
                                 + b_i[:, children]
                             ),
