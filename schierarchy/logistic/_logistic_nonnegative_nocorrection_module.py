@@ -26,7 +26,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         n_cells_per_label_per_level,
         tree,
         weights_prior={"alpha": 0.1, "beta": 1.0, "alpha_hierarchical": 0.3},
-        bias_prior={"mean": -10.0, "sigma": 3.0},
+        bias_prior={"mu": -10.0, "sigma": 3.0},
         learning_mode="fixed-sigma",
         learn_alpha: bool = False,
         init_vals: Optional[dict] = None,
