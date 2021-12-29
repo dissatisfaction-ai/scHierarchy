@@ -29,7 +29,7 @@ def test_hierarchical_logist():
         "learn-sigma-gene",
         "learn-sigma-celltype",
         "learn-sigma-gene-celltype",
-        "learn-sigma-gene-hierarchical",
+        "learn-sigma-gene-layer",
     ]:
         for guide_class in [AutoNormalMessenger, AutoHierarchicalNormalMessenger]:
             for learn_alpha in [False, True]:
