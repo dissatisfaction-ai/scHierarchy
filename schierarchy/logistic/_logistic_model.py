@@ -177,7 +177,6 @@ class LogisticModel(
         self,
         adata: AnnData,
         level_keys: Optional[List[str]] = None,
-        laplace_learning_mode: str = "fixed-sigma",
         # tree: list,
         model_class=None,
         **model_kwargs,
@@ -212,7 +211,6 @@ class LogisticModel(
         self.n_levels_ = len(level_keys)
         self.level_keys_ = level_keys
         self.tree_ = infer_tree(self.adata.obsm["_scvi_extra_categoricals"], level_keys)
-        self.laplace_learning_mode_ = laplace_learning_mode
 
         if model_class is None:
             model_class = HierarchicalLogisticPyroModel
@@ -223,7 +221,6 @@ class LogisticModel(
             n_levels=self.n_levels_,
             n_cells_per_label_per_level=self.n_cells_per_label_per_level_,
             tree=self.tree_,
-            laplace_learning_mode=self.laplace_learning_mode_,
             **model_kwargs,
         )
         self.samples = dict()
