@@ -65,7 +65,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
             "learn-sigma-gene",
             "learn-sigma-celltype",
             "learn-sigma-gene-celltype",
-            "learn-sigma-gene-hierarchical",
+            "learn-sigma-gene-layer",
         ]:
             raise NotImplementedError
 
@@ -222,19 +222,19 @@ class HierarchicalLogisticPyroModel(PyroModule):
                     .expand([self.n_vars, self.layers_size[i]])
                     .to_event(2),
                 )
-            elif self.learning_mode == "learn-sigma-gene-hierarchical":
+            elif self.learning_mode == "learn-sigma-gene-layer":
                 if i == 0:
-                    sigma_ig = pyro.sample(
-                        "sigma_ig",
-                        dist.Exponential(self.weights_prior_beta)
-                        .expand([self.n_vars])
-                        .to_event(1),
-                    )
+                    # sigma_ig = pyro.sample(
+                    #    "sigma_ig",
+                    #    dist.Exponential(self.weights_prior_beta)
+                    #   .expand([self.n_vars])
+                    #    .to_event(1),
+                    # )
                     sigma_ig_level = pyro.sample(
                         "sigma_ig_level",
                         dist.Gamma(
                             self.weights_prior_alpha_hierarchical,
-                            self.ones / sigma_ig[:, None],
+                            self.weights_prior_beta,
                         )
                         .expand([self.n_vars, self.n_levels])
                         .to_event(2),
