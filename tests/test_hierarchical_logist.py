@@ -26,23 +26,34 @@ def test_hierarchical_logist():
         "learn-sigma-celltype",
         "learn-sigma-gene-celltype",
     ]:
-        LogisticModel.setup_anndata(dataset, layer="cdf")
-        # train regression model to get signatures of cell types
-        sc_model = LogisticModel(
-            dataset, level_keys=level_keys, laplace_learning_mode=learning_mode
-        )
-        # test full data training
-        sc_model.train(max_epochs=10, batch_size=None)
-        # test minibatch training
-        sc_model.train(max_epochs=10, batch_size=100)
-        # export the estimated cell abundance (summary of the posterior distribution)
-        dataset = sc_model.export_posterior(dataset, sample_kwargs={"num_samples": 10})
-        # test plot_QC'
-        # sc_model.plot_QC()
-        # test save/load
-        sc_model.save(save_path, overwrite=True, save_anndata=True)
-        sc_model = LogisticModel.load(save_path)
-        os.system(f"rm -rf {save_path}")
+        for use_dropout in [
+            {"use_dropout": True},
+            {"use_dropout": False},
+            {"use_gene_dropout": True},
+            {"use_gene_dropout": False},
+        ]:
+            LogisticModel.setup_anndata(dataset, layer="cdf")
+            # train regression model to get signatures of cell types
+            sc_model = LogisticModel(
+                dataset,
+                level_keys=level_keys,
+                laplace_learning_mode=learning_mode,
+                **use_dropout,
+            )
+            # test full data training
+            sc_model.train(max_epochs=10, batch_size=None)
+            # test minibatch training
+            sc_model.train(max_epochs=10, batch_size=100)
+            # export the estimated cell abundance (summary of the posterior distribution)
+            dataset = sc_model.export_posterior(
+                dataset, sample_kwargs={"num_samples": 10}
+            )
+            # test plot_QC'
+            # sc_model.plot_QC()
+            # test save/load
+            sc_model.save(save_path, overwrite=True, save_anndata=True)
+            sc_model = LogisticModel.load(save_path)
+            os.system(f"rm -rf {save_path}")
 
 
 def test_hierarchical_logist_prediction():
