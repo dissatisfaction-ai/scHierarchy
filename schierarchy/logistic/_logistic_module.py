@@ -21,6 +21,9 @@ class HierarchicalLogisticPyroModel(PyroModule):
         laplace_prior={"mu": 0.0, "sigma": 0.5, "exp_rate": 3.0},
         laplace_learning_mode="fixed-sigma",
         init_vals: Optional[dict] = None,
+        dropout_p: float = 0.1,
+        use_dropout: bool = False,
+        use_gene_dropout: bool = False,
     ):
         """
 
@@ -38,6 +41,8 @@ class HierarchicalLogisticPyroModel(PyroModule):
         ############# Initialise parameters ################
         super().__init__()
 
+        self.dropout = torch.nn.Dropout(p=dropout_p)
+
         self.n_obs = n_obs
         self.n_vars = n_vars
         self.n_levels = n_levels
@@ -45,6 +50,8 @@ class HierarchicalLogisticPyroModel(PyroModule):
         self.tree = tree
         self.laplace_prior = laplace_prior
         self.laplace_learning_mode = laplace_learning_mode
+        self.use_dropout = use_dropout
+        self.use_gene_dropout = use_gene_dropout
 
         if self.laplace_learning_mode not in [
             "fixed-sigma",
@@ -137,6 +144,11 @@ class HierarchicalLogisticPyroModel(PyroModule):
 
     def forward(self, x_data, idx, levels):
         obs_plate = self.create_plates(x_data, idx, levels)
+
+        if self.use_dropout:
+            x_data = self.dropout(x_data)
+        if self.use_gene_dropout:
+            x_data = x_data * self.dropout(self.ones.expand([1, self.n_vars]).clone())
 
         f = []
         for i in range(self.n_levels):
