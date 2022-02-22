@@ -22,7 +22,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         laplace_learning_mode="fixed-sigma",
         init_vals: Optional[dict] = None,
         dropout_p: float = 0.1,
-        use_dropout: bool = False,
+        use_dropout: bool = True,
         use_gene_dropout: bool = False,
     ):
         """
