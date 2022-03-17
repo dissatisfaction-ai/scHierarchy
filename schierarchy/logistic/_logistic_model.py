@@ -381,7 +381,7 @@ class LogisticModel(
             self.module.model.prediction = True
             # use version of this function for prediction
             self.module._get_fn_args_from_batch = (
-                self.module.model._get_fn_args_from_batch
+                self.module.model._get_fn_args_from_batch_prediction
             )
             # resize plates for according to the validation object
             self.module.model.n_obs = adata.n_obs
