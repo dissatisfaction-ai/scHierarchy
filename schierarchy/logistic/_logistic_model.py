@@ -1,10 +1,9 @@
 import logging
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
-import scvi
 from anndata import AnnData
 from cell2location.models.base._pyro_mixin import (
     AutoGuideMixinModule,
@@ -14,10 +13,12 @@ from cell2location.models.base._pyro_mixin import (
 )
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormalMessenger, init_to_feasible, init_to_mean
-from scvi import _CONSTANTS
-from scvi.data._anndata import _setup_anndata, _setup_extra_categorical_covs
+from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalJointObsField, LayerField, NumericalObsField
 from scvi.model.base import BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.module.base import PyroBaseModuleClass
+from scvi.utils import setup_anndata_dsp
 
 from ._logistic_module import HierarchicalLogisticPyroModel
 
@@ -176,7 +177,6 @@ class LogisticModel(
     def __init__(
         self,
         adata: AnnData,
-        level_keys: Optional[List[str]] = None,
         laplace_learning_mode: str = "fixed-sigma",
         # tree: list,
         model_class=None,
@@ -187,31 +187,18 @@ class LogisticModel(
 
         super().__init__(adata)
 
-        # register categorical levels
-        cat_loc, cat_key = _setup_extra_categorical_covs(self.adata, level_keys)
-        scvi.data.register_tensor_from_anndata(
-            self.adata,
-            registry_key=_CONSTANTS.CAT_COVS_KEY,
-            adata_attr_name=cat_loc,
-            adata_key_name=cat_key,
-        )
-        # add index for each cell (provided to pyro plate for correct minibatching)
-        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
-        # for minibatch learning, selected indices lay in "ind_x"
-        scvi.data.register_tensor_from_anndata(
-            adata,
-            registry_key="ind_x",
-            adata_attr_name="obs",
-            adata_key_name="_indices",
-        )
-
+        level_keys = self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
+            "field_keys"
+        ]
         self.n_cells_per_label_per_level_ = [
             self.adata.obs.groupby(group).size().values.astype(int)
             for group in level_keys
         ]
         self.n_levels_ = len(level_keys)
         self.level_keys_ = level_keys
-        self.tree_ = infer_tree(self.adata.obsm["_scvi_extra_categoricals"], level_keys)
+        self.tree_ = infer_tree(
+            self.adata_manager.get_from_registry(REGISTRY_KEYS.CAT_COVS_KEY), level_keys
+        )
         self.laplace_learning_mode_ = laplace_learning_mode
 
         if model_class is None:
@@ -229,40 +216,38 @@ class LogisticModel(
         self.samples = dict()
         self.init_params_ = self._get_init_params(locals())
 
-    @staticmethod
+    @classmethod
+    @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        level_keys: Optional[list] = None,
+        **kwargs,
+    ):
         """
         %(summary)s.
+
         Parameters
         ----------
-        %(param_adata)s
+        %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(param_copy)s
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            batch_key=batch_key,
-            labels_key=labels_key,
-            layer=layer,
-            categorical_covariate_keys=categorical_covariate_keys,
-            continuous_covariate_keys=continuous_covariate_keys,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, level_keys),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
     """@staticmethod
     def setup_anndata_v2(
@@ -371,9 +356,14 @@ class LogisticModel(
 
         sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
 
+        print(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY))
+
         label_keys = list(
-            self.adata.uns["_scvi"]["extra_categoricals"]["mappings"].keys()
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
+                "field_keys"
+            ]
         )
+        print(label_keys)
 
         # when prediction mode change to evaluation mode and swap adata object
         if prediction:
@@ -408,7 +398,7 @@ class LogisticModel(
 
             # revert adata object substitution
             self.adata = adata_train
-            self.module.train()
+            self.module.eval()
             self.module.model.prediction = False
             # re-set default version of this function
             self.module._get_fn_args_from_batch = (
@@ -429,9 +419,13 @@ class LogisticModel(
         # first convert np.arrays to pd.DataFrames with cell type and observation names
         # data frames contain mean, 5%/95% quantiles and standard deviation, denoted by a prefix
         for i in range(self.n_levels_):
-            categories = self.adata.uns["_scvi"]["extra_categoricals"]["mappings"][
-                label_keys[i]
-            ]
+            categories = list(
+                list(
+                    self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
+                        "mappings"
+                    ].values()
+                )[i]
+            )
             for k in add_to_varm:
                 sample_df = pd.DataFrame(
                     self.samples[f"post_sample_{k}"].get(f"weight_level_{i}", None),

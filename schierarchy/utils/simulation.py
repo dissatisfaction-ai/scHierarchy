@@ -108,8 +108,13 @@ def hierarchical_iid(hlevels, *args, **kwargs):
 
     bottom_level_n_labels = hlevels[-1]
     synthetic_data = synthetic_iid(n_labels=bottom_level_n_labels, *args, **kwargs)
+    from re import sub
 
-    levels = ["_scvi_labels"] + [f"level_{i}" for i in range(len(hlevels) - 2, -1, -1)]
+    synthetic_data.obs["labels"] = [
+        int(sub("label_", "", i)) for i in synthetic_data.obs["labels"]
+    ]
+
+    levels = ["labels"] + [f"level_{i}" for i in range(len(hlevels) - 2, -1, -1)]
     for i in range(len(levels) - 1):
         level_up = synthetic_data.obs[levels[i]].apply(
             lambda x: invert_dict(tree[len(tree) - 1 - i])[x]
@@ -117,7 +122,7 @@ def hierarchical_iid(hlevels, *args, **kwargs):
         synthetic_data.obs[levels[i + 1]] = level_up
 
     synthetic_data.obs = synthetic_data.obs.rename(
-        columns={"_scvi_labels": f"level_{len(levels) - 1}"}
+        columns={"labels": f"level_{len(levels) - 1}"}
     )
     synthetic_data.uns["tree"] = tree
     return synthetic_data

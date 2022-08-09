@@ -4,7 +4,7 @@ import pyro
 import pyro.distributions as dist
 import torch
 from pyro.nn import PyroModule
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 
 
 class HierarchicalLogisticPyroModel(PyroModule):
@@ -25,7 +25,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
         use_dropout: bool = True,
         use_gene_dropout: bool = False,
     ):
-        """
+        r"""
 
         Parameters
         ----------
@@ -113,14 +113,14 @@ class HierarchicalLogisticPyroModel(PyroModule):
 
     @staticmethod
     def _get_fn_args_from_batch_training(tensor_dict):
-        x_data = tensor_dict[_CONSTANTS.X_KEY]
+        x_data = tensor_dict[REGISTRY_KEYS.X_KEY]
         idx = tensor_dict["ind_x"].long().squeeze()
-        levels = tensor_dict[_CONSTANTS.CAT_COVS_KEY]
+        levels = tensor_dict[REGISTRY_KEYS.CAT_COVS_KEY]
         return (x_data, idx, levels), {}
 
     @staticmethod
     def _get_fn_args_from_batch_prediction(tensor_dict):
-        x_data = tensor_dict[_CONSTANTS.X_KEY]
+        x_data = tensor_dict[REGISTRY_KEYS.X_KEY]
         idx = tensor_dict["ind_x"].long().squeeze()
         return (x_data, idx, idx), {}
 

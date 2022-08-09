@@ -32,11 +32,10 @@ def test_hierarchical_logist():
             {"use_gene_dropout": True},
             {"use_gene_dropout": False},
         ]:
-            LogisticModel.setup_anndata(dataset, layer="cdf")
+            LogisticModel.setup_anndata(dataset, layer="cdf", level_keys=level_keys)
             # train regression model to get signatures of cell types
             sc_model = LogisticModel(
                 dataset,
-                level_keys=level_keys,
                 laplace_learning_mode=learning_mode,
                 **use_dropout,
             )
@@ -65,14 +64,14 @@ def test_hierarchical_logist_prediction():
         data_to_zero_truncated_cdf, 0, dataset.X
     )
 
-    LogisticModel.setup_anndata(dataset, layer="cdf")
+    LogisticModel.setup_anndata(dataset, layer="cdf", level_keys=level_keys)
 
     # train regression model to get signatures of cell types
-    sc_model = LogisticModel(dataset, level_keys=level_keys)
+    sc_model = LogisticModel(dataset)
     # test full data training
     sc_model.train(max_epochs=10, batch_size=None)
     # test prediction
-    dataset2 = synthetic_iid(n_labels=5, run_setup_anndata=False)
+    dataset2 = synthetic_iid(n_labels=5)
     dataset2.layers["cdf"] = np.apply_along_axis(
         data_to_zero_truncated_cdf, 0, dataset2.X
     )
