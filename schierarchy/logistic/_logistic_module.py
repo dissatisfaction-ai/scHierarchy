@@ -222,7 +222,7 @@ class HierarchicalLogisticPyroModel(PyroModule):
             if i == 0:
                 # computer f for level 0 (it is independent from the previous level as it doesn't exist)
                 f_i = torch.nn.functional.softmax(
-                    torch.matmul(x_data, w_i / n_cells_per_label ** 0.5), dim=1
+                    torch.matmul(x_data, w_i / n_cells_per_label**0.5), dim=1
                 )
             else:
                 # initiate f for level > 0
