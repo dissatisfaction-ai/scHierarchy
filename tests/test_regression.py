@@ -5,7 +5,7 @@ from schierarchy import RegressionModel
 
 def test_regression():
     save_path = "./cell2location_model_test"
-    dataset = synthetic_iid(n_labels=5, run_setup_anndata=False)
+    dataset = synthetic_iid(n_labels=5)
     RegressionModel.setup_anndata(dataset, labels_key="labels", batch_key="batch")
 
     # train regression model to get signatures of cell types

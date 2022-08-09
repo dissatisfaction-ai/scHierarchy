@@ -4,7 +4,6 @@ import logging
 
 from rich.console import Console
 from rich.logging import RichHandler
-from scvi.data import setup_anndata
 
 from .regression._reference_model import RegressionModel
 from .regression._reference_module import RegressionBackgroundDetectionTechPyroModel
@@ -39,7 +38,6 @@ logger.addHandler(ch)
 logger.propagate = False
 
 __all__ = [
-    "setup_anndata",
     "RegressionModel",
     "LogisticModel",
     "HierarchicalLogisticPyroModel",

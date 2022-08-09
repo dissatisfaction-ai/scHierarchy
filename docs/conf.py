@@ -84,9 +84,9 @@ intersphinx_mapping = dict(
 
 
 # General information about the project.
-project = u"schierarchy"
-copyright = u"2021, Yosef Lab, UC Berkeley"
-author = u"Adam Gayoso"
+project = "schierarchy"
+copyright = "2021, Yosef Lab, UC Berkeley"
+author = "Adam Gayoso"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout

@@ -24,11 +24,12 @@ def test_hierarchical_logist_nohierarchy():
         "learn-sigma-celltype",
         "learn-sigma-gene-celltype",
     ]:
-        LogisticModel.setup_anndata(dataset, layer="cdf")
+        LogisticModel.setup_anndata(dataset, layer="cdf", level_keys=level_keys)
 
         # train regression model to get signatures of cell types
         sc_model = LogisticModel(
-            dataset, level_keys=level_keys, laplace_learning_mode=learning_mode
+            dataset,
+            laplace_learning_mode=learning_mode,
         )
         # test full data training
         sc_model.train(max_epochs=10, batch_size=None)
