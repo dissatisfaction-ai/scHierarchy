@@ -356,14 +356,11 @@ class LogisticModel(
 
         sample_kwargs = sample_kwargs if isinstance(sample_kwargs, dict) else dict()
 
-        print(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY))
-
         label_keys = list(
             self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
                 "field_keys"
             ]
         )
-        print(label_keys)
 
         # when prediction mode change to evaluation mode and swap adata object
         if prediction:
