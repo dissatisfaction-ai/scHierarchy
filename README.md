@@ -9,22 +9,17 @@
 
 ## Installation
 
-```bash
-git clone git@github.com:dissatisfaction-ai/scHierarchy.git
-cd scHierarchy
-```
-
 Linux installation
 ```bash
-conda create -y -n schierarchy_env python=3.9
-conda activate schierarchy_env
+conda create -y -n schierarchy-env python=3.9
+conda activate schierarchy-env
 pip install git+https://github.com/dissatisfaction-ai/scHierarchy.git
 ```
 
 Mac installation
 ```bash
-conda create -y -n schierarchy_env python=3.8
-conda activate schierarchy_env
+conda create -y -n schierarchy-env python=3.8
+conda activate schierarchy-env
 pip install git+https://github.com/pyro-ppl/pyro.git@dev
 conda install -y -c anaconda hdf5 pytables netcdf4
 pip install git+https://github.com/dissatisfaction-ai/scHierarchy.git
