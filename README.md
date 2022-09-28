@@ -10,28 +10,24 @@
 ## Installation
 
 ```bash
-git clone git@github.com:vitkl/scHierarchy.git
+git clone git@github.com:dissatisfaction-ai/scHierarchy.git
 cd scHierarchy
 ```
 
 Linux installation
 ```bash
-export PYTHONNOUSERSITE="aaaaa"
 conda create -y -n schierarchy_env python=3.9
 conda activate schierarchy_env
-pip install git+https://github.com/dissatisfaction-ai/scHierarchy.git#egg=scHierarchy[dev,docs,tutorials]
-python -m ipykernel install --user --name=schierarchy_env --display-name='Environment (schierarchy_env)'
+pip install git+https://github.com/dissatisfaction-ai/scHierarchy.git
 ```
 
 Mac installation
 ```bash
-export PYTHONNOUSERSITE="aaaaa"
 conda create -y -n schierarchy_env python=3.8
 conda activate schierarchy_env
 pip install git+https://github.com/pyro-ppl/pyro.git@dev
 conda install -y -c anaconda hdf5 pytables netcdf4
-pip install git+https://github.com/dissatisfaction-ai/scHierarchy.git#egg=scHierarchy[dev,docs,tutorials]
-python -m ipykernel install --user --name=schierarchy_env --display-name='Environment (schierarchy_env)'
+pip install git+https://github.com/dissatisfaction-ai/scHierarchy.git
 ```
 
 ## Usage example notebook
