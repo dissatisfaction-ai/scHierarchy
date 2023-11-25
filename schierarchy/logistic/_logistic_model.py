@@ -389,9 +389,18 @@ class LogisticModel(
             self.adata = self._validate_anndata(adata)
             # self.adata = adata
 
-            # generate samples from posterior distributions for all parameters
-            # and compute mean, 5%/95% quantiles and standard deviation
-            self.samples = self.sample_posterior(**sample_kwargs)
+            if use_quantiles:
+                add_to_varm = [i for i in add_to_varm if (i not in ["means", "stds"]) and ("q" in i)]
+                if len(add_to_varm) == 0:
+                    raise ValueError("No quantiles to export - please add add_to_obsm=['q05', 'q50', 'q95'].")
+                self.samples = dict()
+                for i in add_to_varm:
+                    q = float(f"0.{i[1:]}")
+                    self.samples[f"post_sample_{i}"] = self.posterior_quantile(q=q, **sample_kwargs)
+            else:
+                # generate samples from posterior distributions for all parameters
+                # and compute mean, 5%/95% quantiles and standard deviation
+                self.samples = self.sample_posterior(**sample_kwargs)
 
             # revert adata object substitution
             self.adata = adata_train
@@ -403,9 +412,18 @@ class LogisticModel(
             )
             obs_names = adata.obs_names
         else:
-            # generate samples from posterior distributions for all parameters
-            # and compute mean, 5%/95% quantiles and standard deviation
-            self.samples = self.sample_posterior(**sample_kwargs)
+            if use_quantiles:
+                add_to_varm = [i for i in add_to_varm if (i not in ["means", "stds"]) and ("q" in i)]
+                if len(add_to_varm) == 0:
+                    raise ValueError("No quantiles to export - please add add_to_obsm=['q05', 'q50', 'q95'].")
+                self.samples = dict()
+                for i in add_to_varm:
+                    q = float(f"0.{i[1:]}")
+                    self.samples[f"post_sample_{i}"] = self.posterior_quantile(q=q, **sample_kwargs)
+            else:
+                # generate samples from posterior distributions for all parameters
+                # and compute mean, 5%/95% quantiles and standard deviation
+                self.samples = self.sample_posterior(**sample_kwargs)
             obs_names = self.adata.obs_names
 
         # export posterior distribution summary for all parameters and
@@ -423,6 +441,7 @@ class LogisticModel(
                     ].values()
                 )[i]
             )
+            print(f"level {i}", categories) 
             for k in add_to_varm:
                 sample_df = pd.DataFrame(
                     self.samples[f"post_sample_{k}"].get(f"weight_level_{i}", None),
