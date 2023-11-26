@@ -37,6 +37,13 @@ def test_hierarchical_logist_nohierarchy():
         sc_model.train(max_epochs=10, batch_size=100)
         # export the estimated cell abundance (summary of the posterior distribution)
         dataset = sc_model.export_posterior(dataset, sample_kwargs={"num_samples": 10})
+        dataset = sc_model.export_posterior(
+            dataset, sample_kwargs={
+                "use_median": True,
+            },
+            use_quantiles=True,
+            add_to_varm=['q50'],
+        )
         # test plot_QC'
         # sc_model.plot_QC()
         # test save/load
