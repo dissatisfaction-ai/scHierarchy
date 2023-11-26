@@ -321,6 +321,7 @@ class LogisticModel(
         self,
         adata,
         prediction: bool = False,
+        use_quantiles: bool = False,
         sample_kwargs: Optional[dict] = None,
         export_slot: str = "mod",
         add_to_varm: list = ["means", "stds", "q05", "q95"],
@@ -441,7 +442,6 @@ class LogisticModel(
                     ].values()
                 )[i]
             )
-            print(f"level {i}", categories) 
             for k in add_to_varm:
                 sample_df = pd.DataFrame(
                     self.samples[f"post_sample_{k}"].get(f"weight_level_{i}", None),

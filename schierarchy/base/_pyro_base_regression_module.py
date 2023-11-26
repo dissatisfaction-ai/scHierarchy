@@ -12,7 +12,6 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
         amortised: bool = False,
         encoder_mode: Literal["single", "multiple", "single-multiple"] = "single",
         encoder_kwargs=None,
-        data_transform="log1p",
         create_autoguide_kwargs: Optional[dict] = None,
         **kwargs,
     ):
@@ -43,7 +42,6 @@ class RegressionBaseModule(PyroBaseModuleClass, AutoGuideMixinModule):
             model=self.model,
             amortised=self.is_amortised,
             encoder_kwargs=encoder_kwargs,
-            data_transform=data_transform,
             encoder_mode=encoder_mode,
             init_loc_fn=self.init_to_value,
             n_cat_list=[kwargs["n_batch"]],
